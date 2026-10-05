@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>성욱달러 확률 카드게임</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#17191c;--muted:#69707a;--line:#dfe3e8;--accent:#315efb;--accent2:#eef2ff;--good:#16794b;--bad:#b42318}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif}
+.wrap{max-width:760px;margin:auto;padding:18px 14px 40px}.top{text-align:center;margin-bottom:16px}.top h1{margin:0 0 6px;font-size:25px}.top p{margin:0;color:var(--muted);font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.box,.panel{background:var(--card);border:1px solid var(--line);border-radius:16px}.box{padding:12px}.label{font-size:12px;color:var(--muted)}.value{font-size:19px;font-weight:800;margin-top:4px}.panel{padding:16px;margin-top:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:14px;font-weight:700}input{width:100%;margin-top:6px;padding:13px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:#fff}
+button{border:0;border-radius:11px;padding:13px 16px;font-size:16px;font-weight:800;cursor:pointer;min-height:48px}.primary{background:var(--accent);color:#fff}.secondary{background:#fff;border:1px solid var(--line);color:var(--text)}button:disabled{opacity:.45;cursor:not-allowed}.full{width:100%;margin-top:12px}
+.note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}.player{text-align:center}.hand{display:flex;justify-content:center;gap:8px;margin:14px 0}.card{width:62px;height:88px;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:900;background:#fff}.small{font-size:13px;color:var(--muted)}.choice{display:none}.choiceBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.result{line-height:1.6;font-size:14px}.good{color:var(--good)}.bad{color:var(--bad)}details{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px}summary{font-weight:800;cursor:pointer}details p{font-size:13px;line-height:1.55;color:var(--muted)}
+.final{display:none;text-align:center}.final h2{margin-top:0}.finalGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.finalItem{background:var(--accent2);border-radius:12px;padding:12px}.finalItem b{display:block;font-size:19px;margin-top:3px}
+@media(max-width:480px){.wrap{padding:12px 10px 30px}.top h1{font-size:22px}.stats{grid-template-columns:1fr 1fr}.stats .box:last-child{grid-column:1/-1}.grid2{grid-template-columns:1fr}.card{width:56px;height:82px}.value{font-size:17px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="top"><h1>성욱달러 확률 카드게임</h1><p>확률과 선택에 따라 가상 자산이 어떻게 변하는지 확인해 보세요.</p></header>
+
+<section class="stats">
+ <div class="box"><div class="label">보유 자산</div><div id="pts" class="value">10,000 SD</div></div>
+ <div class="box"><div class="label">라운드</div><div id="round" class="value">1 / 15</div></div>
+ <div class="box"><div class="label">누적 변화</div><div id="profit" class="value">0 SD</div></div>
+</section>
+
+<section class="panel" id="betPanel">
+ <div class="grid2">
+  <label>기본 베팅 (SD)<input id="bet" type="number" min="1000" step="100" value="1000" inputmode="numeric"></label>
+  <label>포켓 페어 베팅 (SD)<input id="pairBet" type="number" min="0" step="100" value="0" inputmode="numeric"></label>
+ </div>
+ <div class="note">기본 베팅은 최소 1,000 SD입니다. 포켓 페어 베팅에는 별도 상한이 없지만, 두 베팅의 합은 현재 보유 자산을 넘을 수 없습니다.</div>
+ <button id="deal" class="primary full">첫 카드 공개</button>
+ <div id="validation" class="note" aria-live="polite"></div>
+</section>
+
+<section class="cards panel">
+ <div class="player"><b>나</b><div class="hand"><div id="m1" class="card">?</div><div id="m2" class="card">?</div></div><div id="ms" class="small">카드를 뽑아보세요.</div></div>
+ <div class="player"><b>상대</b><div class="hand"><div id="o1" class="card">?</div><div id="o2" class="card">?</div></div><div id="os" class="small">비공개</div></div>
+</section>
+
+<section id="choice" class="panel choice">
+ <b>첫 카드를 확인했습니다. 어떻게 선택할까요?</b>
+ <div class="choiceBtns"><button id="go" class="primary">계속</button><button id="fold" class="secondary">포기</button></div>
+</section>
+
+<section class="panel"><b>이번 라운드</b><div id="result" class="result">시작 자산은 10,000 성욱달러입니다.</div></section>
+
+<section id="final" class="panel final">
+ <h2>게임 종료</h2><div class="small">15라운드의 선택 결과입니다.</div>
+ <div class="finalGrid">
+  <div class="finalItem"><span class="label">최종 자산</span><b id="fPts">-</b></div>
+  <div class="finalItem"><span class="label">수익률</span><b id="fRate">-</b></div>
+  <div class="finalItem"><span class="label">계속 / 포기</span><b id="fChoices">-</b></div>
+  <div class="finalItem"><span class="label">포켓페어 베팅 손익</span><b id="fPair">-</b></div>
+ </div>
+</section>
+
+<details><summary>게임 규칙</summary>
+<p>A~K 각 2장, 총 26장을 사용합니다. A=1, 2~9는 숫자 그대로, 10·J·Q·K는 10점입니다.</p>
+<p>두 카드 합이 높은 쪽이 승리하며, 같은 문자 두 장인 포켓 페어는 일반 패보다 우선합니다.</p>
+<p>계속 후 승리하면 기본 베팅액의 1.8배가 반환됩니다. 무승부는 기본 베팅액을 돌려받습니다. 패배하면 기본 베팅액을 잃습니다.</p>
+<p>포기하면 기본 베팅액의 절반을 잃습니다. 다만 실제로 이기는 패를 포기했다면 기본 베팅액의 1.5배를 잃습니다.</p>
+<p>포켓 페어 베팅은 자유롭게 정할 수 있으며, 내 최종 카드가 포켓 페어이면 해당 베팅액의 6배가 반환됩니다.</p>
+</details>
+<button id="reset" class="secondary full">처음부터 다시 시작</button>
+</main>
+
+<script>
+(()=> {
+const $=id=>document.getElementById(id);
+const ranks=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+let points=10000, round=1, hand=null, bet=0, pairBet=0;
+let continueCount=0, foldCount=0, pairNet=0;
+const value=r=>r==='A'?1:['10','J','Q','K'].includes(r)?10:Number(r);
+const score=h=>({pair:h[0]===h[1],sum:value(h[0])+value(h[1])});
+const compare=(a,b)=>{const A=score(a),B=score(b);if(A.pair!==B.pair)return A.pair?1:-1;if(A.sum===B.sum)return 0;return A.sum>B.sum?1:-1};
+const fmt=n=>Math.round(n).toLocaleString('ko-KR')+' SD';
+function newHand(){let d=ranks.flatMap(r=>[r,r]);for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return{me:[d[0],d[2]],op:[d[1],d[3]]}}
+function update(){ $('pts').textContent=fmt(points);$('round').textContent=Math.min(round,15)+' / 15';const p=points-10000;$('profit').textContent=(p>0?'+':'')+fmt(p)}
+function desc(h){const s=score(h);return s.pair?'포켓 페어 '+h[0]+' · '+s.sum+'점':'합계 '+s.sum+'점'}
+function reveal(all){$('m1').textContent=hand.me[0];$('m2').textContent=all?hand.me[1]:'?';$('o1').textContent=all?hand.op[0]:'?';$('o2').textContent=all?hand.op[1]:'?';if(all){$('ms').textContent=desc(hand.me);$('os').textContent=desc(hand.op)}}
+function finishRound(text){$('result').textContent=text;$('choice').style.display='none';$('deal').disabled=false;$('bet').disabled=false;$('pairBet').disabled=false;round++;update();if(round>15||points<1000)endGame()}
+function endGame(){ $('deal').disabled=true;$('bet').disabled=true;$('pairBet').disabled=true;const rate=(points-10000)/10000*100;$('fPts').textContent=fmt(points);$('fRate').textContent=(rate>0?'+':'')+rate.toFixed(1)+'%';$('fChoices').textContent=continueCount+' / '+foldCount;$('fPair').textContent=(pairNet>0?'+':'')+fmt(pairNet);$('final').style.display='block';$('result').textContent += ' 최종 결과를 확인하세요.'}
+$('deal').addEventListener('click',()=>{
+ bet=Math.floor(Number($('bet').value)/100)*100;
+ pairBet=Math.floor(Math.max(0,Number($('pairBet').value)||0)/100)*100;
+ if(!Number.isFinite(bet)||bet<1000){$('validation').textContent='기본 베팅은 최소 1,000 SD입니다.';return}
+ if(bet+pairBet>points){$('validation').textContent='두 베팅의 합이 현재 보유 자산을 넘습니다.';return}
+ $('bet').value=bet;$('pairBet').value=pairBet;$('validation').textContent='';
+ points-=bet+pairBet; pairNet-=pairBet; hand=newHand(); reveal(false);
+ $('ms').textContent='첫 카드: '+hand.me[0];$('os').textContent='비공개';
+ $('choice').style.display='block';$('deal').disabled=true;$('bet').disabled=true;$('pairBet').disabled=true;
+ $('result').textContent='첫 카드를 보고 계속할지 포기할지 결정하세요.';update();
+});
+$('go').addEventListener('click',()=>{
+ continueCount++; reveal(true); const c=compare(hand.me,hand.op); let ret=c>0?bet*1.8:c===0?bet:0;
+ const hit=score(hand.me).pair; if(hit&&pairBet>0){ret+=pairBet*6;pairNet+=pairBet*6}
+ points+=ret;
+ let text=c>0?'승리! ':c<0?'패배. ':'무승부. ';
+ text+=hit&&pairBet>0?'포켓 페어 적중으로 '+fmt(pairBet*6)+'가 반환되었습니다.':'포켓 페어 반환은 없습니다.';
+ finishRound(text);
+});
+$('fold').addEventListener('click',()=>{
+ foldCount++; reveal(true); const wouldWin=compare(hand.me,hand.op)>0;
+ points+=bet-(wouldWin?bet*1.5:bet*.5);
+ const hit=score(hand.me).pair; if(hit&&pairBet>0){points+=pairBet*6;pairNet+=pairBet*6}
+ let text=wouldWin?'실제로 이기는 패를 포기하여 기본 베팅액의 1.5배를 잃었습니다.':'포기하여 기본 베팅액의 절반을 잃었습니다.';
+ if(hit&&pairBet>0)text+=' 포켓 페어 베팅은 적중했습니다.';
+ finishRound(text);
+});
+$('reset').addEventListener('click',()=>{
+ points=10000;round=1;hand=null;bet=0;pairBet=0;continueCount=0;foldCount=0;pairNet=0;
+ $('bet').value=1000;$('pairBet').value=0;$('deal').disabled=false;$('bet').disabled=false;$('pairBet').disabled=false;
+ $('choice').style.display='none';$('final').style.display='none';['m1','m2','o1','o2'].forEach(x=>$(x).textContent='?');
+ $('ms').textContent='카드를 뽑아보세요.';$('os').textContent='비공개';$('result').textContent='시작 자산은 10,000 성욱달러입니다.';$('validation').textContent='';update();
+});
+update();
+})();
+</script>
+</body>
+</html>
